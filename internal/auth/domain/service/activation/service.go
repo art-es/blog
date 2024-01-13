@@ -6,10 +6,10 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 
 	"github.com/art-es/blog/internal/auth/domain"
 	"github.com/art-es/blog/internal/auth/dto"
+	"github.com/art-es/blog/internal/common/log"
 )
 
 type databus interface {
@@ -17,11 +17,11 @@ type databus interface {
 }
 
 type Service struct {
-	logger  *zap.Logger
+	logger  log.Logger
 	databus databus
 }
 
-func New(logger *zap.Logger, databus databus) *Service {
+func New(logger log.Logger, databus databus) *Service {
 	return &Service{
 		logger:  logger,
 		databus: databus,
@@ -66,8 +66,8 @@ func (s *Service) SendCode(ctx context.Context, user *domain.User, tx domain.TxC
 
 	if err := s.databus.ProduceActivationEmail(ctx, msg); err != nil {
 		s.logger.Error("produce message to databus error",
-			zap.Error(err),
-			zap.String("location", "auth/service/activation"))
+			log.Error(err),
+			log.String("location", "auth/service/activation"))
 	}
 
 	return nil

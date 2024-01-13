@@ -1,4 +1,4 @@
-package activate
+package v1_user_activate
 
 import (
 	"context"
@@ -6,15 +6,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 
 	"github.com/art-es/blog/internal/auth/dto"
+	"github.com/art-es/blog/internal/common/api"
 )
 
-const (
-	invalidCodeErrorMessage    = "invalid code"
-	internalServerErrorMessage = "sorry, try again later"
-)
+const invalidCodeErrorMessage = "invalid code"
 
 type usecase interface {
 	Do(ctx context.Context, in *dto.ActivateIn) error
@@ -26,21 +23,29 @@ type response struct {
 }
 
 type Handler struct {
-	usecase usecase
-	logger  *zap.Logger
+	usecase            usecase
+	serverErrorHandler api.ServerErrorHandler
 }
 
-func NewHandler(usecase usecase, logger *zap.Logger) *Handler {
+func New(usecase usecase, serverErrorHandler api.ServerErrorHandler) *Handler {
 	return &Handler{
-		usecase: usecase,
-		logger:  logger,
+		usecase:            usecase,
+		serverErrorHandler: serverErrorHandler,
 	}
+}
+
+func (h *Handler) Method() string {
+	return http.MethodGet
+}
+
+func (h *Handler) Endpoint() string {
+	return "/v1/auth/user/activate/:code"
 }
 
 func (h *Handler) Handle(ctx *gin.Context) {
 	code := ctx.Param("code")
 	if code == "" || !validUUID(code) {
-		ctx.JSON(http.StatusBadRequest, response{OK: false, Message: invalidCodeErrorMessage})
+		ctx.JSON(http.StatusBadRequest, response{Message: invalidCodeErrorMessage})
 		return
 	}
 
@@ -48,10 +53,9 @@ func (h *Handler) Handle(ctx *gin.Context) {
 	if err != nil {
 		switch err {
 		case dto.ErrActivationCodeNotFound, dto.ErrUserNotFound:
-			ctx.JSON(http.StatusNotFound, response{OK: false})
+			ctx.JSON(http.StatusNotFound, response{})
 		default:
-			h.logger.Error("auth: activate api error", zap.Error(err))
-			ctx.JSON(http.StatusInternalServerError, response{OK: false, Message: internalServerErrorMessage})
+			h.serverErrorHandler.Handle(h.Endpoint(), ctx.Writer, err)
 		}
 		return
 	}

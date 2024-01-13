@@ -1,17 +1,15 @@
-package refresh_token
+package v1_token_refresh
 
 import (
 	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 
 	"github.com/art-es/blog/internal/auth/api/util"
 	"github.com/art-es/blog/internal/auth/dto"
+	"github.com/art-es/blog/internal/common/api"
 )
-
-const internalServerErrorMessage = "sorry, try again later"
 
 type usecase interface {
 	Do(ctx context.Context, in *dto.RefreshTokenIn) (*dto.RefreshTokenOut, error)
@@ -24,21 +22,29 @@ type response struct {
 }
 
 type Handler struct {
-	usecase usecase
-	logger  *zap.Logger
+	usecase            usecase
+	serverErrorHandler api.ServerErrorHandler
 }
 
-func NewHandler(usecase usecase, logger *zap.Logger) *Handler {
+func New(usecase usecase, serverErrorHandler api.ServerErrorHandler) *Handler {
 	return &Handler{
-		usecase: usecase,
-		logger:  logger,
+		usecase:            usecase,
+		serverErrorHandler: serverErrorHandler,
 	}
+}
+
+func (h *Handler) Method() string {
+	return http.MethodPost
+}
+
+func (h *Handler) Endpoint() string {
+	return "/v1/auth/token/refresh"
 }
 
 func (h *Handler) Handle(ctx *gin.Context) {
 	accessToken, ok := util.ParseBearerToken(ctx)
 	if !ok {
-		ctx.JSON(http.StatusUnauthorized, response{OK: false})
+		ctx.JSON(http.StatusUnauthorized, response{})
 		return
 	}
 
@@ -46,10 +52,9 @@ func (h *Handler) Handle(ctx *gin.Context) {
 	if err != nil {
 		switch err {
 		case dto.ErrInvalidAccessToken:
-			ctx.JSON(http.StatusUnauthorized, response{OK: false})
+			ctx.JSON(http.StatusUnauthorized, response{})
 		default:
-			h.logger.Error("auth: refresh token api error", zap.Error(err))
-			ctx.JSON(http.StatusInternalServerError, response{OK: false, Message: internalServerErrorMessage})
+			h.serverErrorHandler.Handle(h.Endpoint(), ctx.Writer, err)
 		}
 		return
 	}

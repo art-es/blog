@@ -17,7 +17,7 @@ type Middleware struct {
 	usecase usecase
 }
 
-func NewMiddleware(usecase usecase) *Middleware {
+func New(usecase usecase) *Middleware {
 	return &Middleware{usecase: usecase}
 }
 

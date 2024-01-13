@@ -8,13 +8,13 @@ import (
 	"github.com/art-es/blog/internal/blog/api/get_categories"
 )
 
-func initBlogRoutes(
-	router *gin.Engine,
+func bindBlogEndpoints(
+	r *gin.Engine,
 	parseTokenMiddleware gin.HandlerFunc,
 ) {
 	// TODO: add implementation
-	group := router.Group("/v1/blog", parseTokenMiddleware)
+	group := r.Group("/v1/blog", parseTokenMiddleware)
 	group.GET("/categories", get_categories.NewHandler().Handle)
-	group.GET("/v1/articles", get_articles.NewHandler().Handle)
-	group.GET("/v1/articles/:slug", get_article.NewHandler().Handle)
+	group.GET("/articles", get_articles.NewHandler().Handle)
+	group.GET("/articles/:slug", get_article.NewHandler().Handle)
 }

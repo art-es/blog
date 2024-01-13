@@ -1,22 +1,16 @@
-package authenticate
+package v1_user_authenticate
 
 import (
 	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
-	"go.uber.org/zap"
 
 	"github.com/art-es/blog/internal/auth/dto"
+	"github.com/art-es/blog/internal/common/api"
 )
 
-const (
-	credentialsErrorMessage    = "credentials are wrong"
-	internalServerErrorMessage = "sorry, try again later"
-)
-
-var validate = validator.New()
+const credentialsErrorMessage = "credentials are wrong"
 
 type usecase interface {
 	Do(ctx context.Context, in *dto.AuthenticateIn) (*dto.AuthenticateOut, error)
@@ -34,23 +28,37 @@ type response struct {
 }
 
 type Handler struct {
-	usecase usecase
-	logger  *zap.Logger
+	usecase            usecase
+	validator          api.Validator
+	serverErrorHandler api.ServerErrorHandler
 }
 
-func NewHandler(usecase usecase, logger *zap.Logger) *Handler {
+func New(
+	usecase usecase,
+	validator api.Validator,
+	serverErrorHandler api.ServerErrorHandler,
+) *Handler {
 	return &Handler{
-		usecase: usecase,
-		logger:  logger,
+		usecase:            usecase,
+		validator:          validator,
+		serverErrorHandler: serverErrorHandler,
 	}
+}
+
+func (h *Handler) Method() string {
+	return http.MethodPost
+}
+
+func (h *Handler) Endpoint() string {
+	return "/v1/auth/user/authenticate"
 }
 
 func (h *Handler) Handle(ctx *gin.Context) {
 	var req request
 	_ = ctx.BindJSON(&req)
 
-	if err := validate.Struct(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, response{OK: false, Message: err.Error()})
+	if err := h.validator.Struct(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, response{Message: err.Error()})
 		return
 	}
 
@@ -59,10 +67,9 @@ func (h *Handler) Handle(ctx *gin.Context) {
 	if err != nil {
 		switch err {
 		case dto.ErrUserNotFound, dto.ErrWrongPassword:
-			ctx.JSON(http.StatusBadRequest, response{OK: false, Message: credentialsErrorMessage})
+			ctx.JSON(http.StatusBadRequest, response{Message: credentialsErrorMessage})
 		default:
-			h.logger.Error("auth: authenticate api error", zap.Error(err))
-			ctx.JSON(http.StatusInternalServerError, response{OK: false, Message: internalServerErrorMessage})
+			h.serverErrorHandler.Handle(h.Endpoint(), ctx.Writer, err)
 		}
 		return
 	}

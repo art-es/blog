@@ -7,13 +7,13 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 
 	"github.com/art-es/blog/internal/auth/domain"
 	mockdomain "github.com/art-es/blog/internal/auth/domain/mock"
 	"github.com/art-es/blog/internal/auth/domain/service/activation"
 	"github.com/art-es/blog/internal/auth/domain/service/activation/mock"
 	"github.com/art-es/blog/internal/auth/dto"
+	log_mock "github.com/art-es/blog/internal/common/log/mock"
 	"github.com/art-es/blog/internal/common/testutil"
 )
 
@@ -23,7 +23,7 @@ func TestService_Activate(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	var (
-		logger = zap.NewNop()
+		logger = log_mock.NewMockLogger(ctrl)
 		tx     = mockdomain.NewMockTxCommitter(ctrl)
 	)
 
@@ -212,7 +212,7 @@ func TestService_SendCode(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	var (
-		logger  = zap.NewNop()
+		logger  = log_mock.NewMockLogger(ctrl)
 		databus = mock.NewMockdatabus(ctrl)
 		tx      = mockdomain.NewMockTxCommitter(ctrl)
 	)

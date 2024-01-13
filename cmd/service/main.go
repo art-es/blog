@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/art-es/blog/internal/common/api"
 	"github.com/art-es/blog/internal/common/log"
 )
 
@@ -17,10 +18,15 @@ func main() {
 	}
 
 	router := gin.New()
-	parseAccessTokenMiddleware := newParseAccessTokenMiddleware(config, pgConn)
 
-	initAuthRoutes(router, config, logger, pgConn)
-	initBlogRoutes(router, parseAccessTokenMiddleware)
+	var (
+		validator                  = api.NewValidator()
+		serverErrorHandler         = api.NewServerErrorHandler(logger)
+		parseAccessTokenMiddleware = newParseAccessTokenMiddleware(config, pgConn)
+	)
+
+	bindAuthEndpoints(router, config, logger, pgConn, validator, serverErrorHandler)
+	bindBlogEndpoints(router, parseAccessTokenMiddleware)
 
 	if err = router.Run(config.serviceUrl); err != nil {
 		panic(err)
