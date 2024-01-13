@@ -1,3 +1,4 @@
+//go:generate mockgen -source=handler.go -destination=mock/handler.go -package=mock
 package parse_token
 
 import (
@@ -5,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/art-es/blog/internal/auth/api/util"
 	"github.com/art-es/blog/internal/auth/dto"
+	"github.com/art-es/blog/internal/common/apiutil"
 )
 
 type usecase interface {
@@ -22,9 +23,9 @@ func New(usecase usecase) *Middleware {
 }
 
 func (m *Middleware) Handle(ctx *gin.Context) {
-	if accessToken, ok := util.ParseBearerToken(ctx); ok {
+	if accessToken, ok := apiutil.ParseBearerToken(ctx); ok {
 		if out, err := m.usecase.Do(ctx, &dto.ParseTokenIn{AccessToken: accessToken}); err == nil {
-			util.SetUserID(ctx, out.UserID)
+			apiutil.SetUserID(ctx, out.UserID)
 		}
 	}
 

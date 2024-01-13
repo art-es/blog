@@ -1,3 +1,4 @@
+//go:generate mockgen -source=server_error.go -destination=mock/server_error.go -package=mock
 package api
 
 import (
@@ -35,7 +36,7 @@ func (h *serverErrorHandler) Handle(endpoint string, w http.ResponseWriter, err 
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusInternalServerError)
-	json.NewEncoder(w).Encode(&response{
+	_ = json.NewEncoder(w).Encode(&response{
 		OK:      false,
 		Message: responseMessage,
 	})

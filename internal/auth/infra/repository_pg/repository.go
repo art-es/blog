@@ -11,7 +11,7 @@ type Repository struct {
 	*pg.Repository[domain.Repository, domain.TxCommitter]
 }
 
-func New(db *sql.DB) domain.Repository {
+func New(db *sql.DB) *Repository {
 	return &Repository{
 		Repository: pg.New[domain.Repository, domain.TxCommitter](db, newTxComitter),
 	}

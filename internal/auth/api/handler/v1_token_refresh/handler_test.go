@@ -1,8 +1,7 @@
-package v1_user_register
+package v1_token_refresh
 
 import (
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,7 +9,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/art-es/blog/internal/auth/api/handler/v1_user_register/mock"
+	"github.com/art-es/blog/internal/auth/api/handler/v1_token_refresh/mock"
 	"github.com/art-es/blog/internal/auth/dto"
 	api_mock "github.com/art-es/blog/internal/common/api/mock"
 	"github.com/art-es/blog/internal/common/testutil"
@@ -22,37 +21,17 @@ func TestHandler_Handle(t *testing.T) {
 
 	var (
 		usecase            = mock.NewMockusecase(ctrl)
-		validator          = api_mock.NewMockValidator(ctrl)
 		serverErrorHandler = api_mock.NewMockServerErrorHandler(ctrl)
-		handler            = New(usecase, validator, serverErrorHandler)
+		handler            = New(usecase, serverErrorHandler)
 		router             = testutil.NewGinRouter(handler)
 	)
 
 	var (
-		name              = "dummy name"
-		email             = "dummy@example.com"
-		password          = "1234Qwerty"
+		token             = "dummyAccessToken"
+		refreshedToken    = "dummyRefreshedAccessToken"
 		dummyResponseBody = `{"message":"dummy response"}`
 		dummyError        = errors.New("dummy error")
 		noError           = (error)(nil)
-
-		requestBody = func() io.ReadCloser {
-			return testutil.ReadCloserFromJSON(map[string]any{
-				"name":     name,
-				"email":    email,
-				"password": password,
-			})
-		}
-		validatorRequest = &request{
-			Name:     name,
-			Email:    email,
-			Password: password,
-		}
-		registerIn = &dto.RegisterIn{
-			Name:     name,
-			Email:    email,
-			Password: password,
-		}
 	)
 
 	tests := []struct {
@@ -64,55 +43,43 @@ func TestHandler_Handle(t *testing.T) {
 		{
 			name: "happy path",
 			setup: func(r *http.Request) {
-				r.Body = requestBody()
-
-				validator.EXPECT().
-					Struct(gomock.Eq(validatorRequest)).
-					Return(noError)
+				r.Header.Set("Authorization", "Bearer dummyAccessToken")
 
 				usecase.EXPECT().
-					Do(gomock.Any(), gomock.Eq(registerIn)).
-					Return(noError)
+					Do(gomock.Any(), gomock.Eq(&dto.RefreshTokenIn{AccessToken: token})).
+					Return(&dto.RefreshTokenOut{AccessToken: refreshedToken}, noError)
 			},
 			expCode: 200,
-			expBody: `{"ok":true}`,
+			expBody: `{"ok":true,"accessToken":"dummyRefreshedAccessToken"}`,
 		},
 		{
-			name: "email is busy",
+			name: "token not specified",
 			setup: func(r *http.Request) {
-				r.Body = requestBody()
-
-				validator.EXPECT().
-					Struct(gomock.Eq(validatorRequest)).
-					Return(noError)
+				r.Header.Del("Authorization")
+			},
+			expCode: 401,
+			expBody: `{"ok":false}`,
+		},
+		{
+			name: "invalid token",
+			setup: func(r *http.Request) {
+				r.Header.Set("Authorization", "Bearer dummyAccessToken")
 
 				usecase.EXPECT().
-					Do(gomock.Any(), gomock.Eq(registerIn)).
-					Return(dto.ErrEmailIsBusy)
+					Do(gomock.Any(), gomock.Eq(&dto.RefreshTokenIn{AccessToken: token})).
+					Return(nil, dto.ErrInvalidAccessToken)
 			},
-			expCode: 400,
-			expBody: `{"ok":false,"message":"email is busy"}`,
-		},
-		{
-			name: "validation error",
-			setup: func(r *http.Request) {
-				validator.EXPECT().
-					Struct(gomock.Any()).
-					Return(dummyError)
-			},
-			expCode: 400,
-			expBody: `{"ok":false,"message":"dummy error"}`,
+			expCode: 401,
+			expBody: `{"ok":false}`,
 		},
 		{
 			name: "server error",
 			setup: func(r *http.Request) {
-				validator.EXPECT().
-					Struct(gomock.Any()).
-					Return(noError)
+				r.Header.Set("Authorization", "Bearer dummyAccessToken")
 
 				usecase.EXPECT().
-					Do(gomock.Any(), gomock.Any()).
-					Return(dummyError)
+					Do(gomock.Any(), gomock.Eq(&dto.RefreshTokenIn{AccessToken: token})).
+					Return(nil, dummyError)
 
 				serverErrorHandler.EXPECT().
 					Handle(gomock.Eq(handler.Endpoint()), gomock.Any(), gomock.Eq(dummyError)).
@@ -138,7 +105,7 @@ func TestHandler_Handle(t *testing.T) {
 			router.ServeHTTP(w, r)
 
 			assert.Equal(t, tt.expCode, w.Code)
-			assert.JSONEq(t, tt.expBody, w.Body.String())
+			assert.Equal(t, tt.expBody, w.Body.String())
 		})
 	}
 }

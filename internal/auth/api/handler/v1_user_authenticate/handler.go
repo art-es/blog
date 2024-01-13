@@ -1,3 +1,4 @@
+//go:generate mockgen -source=handler.go -destination=mock/handler.go -package=mock
 package v1_user_authenticate
 
 import (
@@ -10,7 +11,7 @@ import (
 	"github.com/art-es/blog/internal/common/api"
 )
 
-const credentialsErrorMessage = "credentials are wrong"
+const credsErrorMessage = "credentials are wrong"
 
 type usecase interface {
 	Do(ctx context.Context, in *dto.AuthenticateIn) (*dto.AuthenticateOut, error)
@@ -55,7 +56,7 @@ func (h *Handler) Endpoint() string {
 
 func (h *Handler) Handle(ctx *gin.Context) {
 	var req request
-	_ = ctx.BindJSON(&req)
+	ctx.ShouldBindJSON(&req)
 
 	if err := h.validator.Struct(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, response{Message: err.Error()})
@@ -67,7 +68,7 @@ func (h *Handler) Handle(ctx *gin.Context) {
 	if err != nil {
 		switch err {
 		case dto.ErrUserNotFound, dto.ErrWrongPassword:
-			ctx.JSON(http.StatusBadRequest, response{Message: credentialsErrorMessage})
+			ctx.JSON(http.StatusBadRequest, response{Message: credsErrorMessage})
 		default:
 			h.serverErrorHandler.Handle(h.Endpoint(), ctx.Writer, err)
 		}

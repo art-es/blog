@@ -1,8 +1,7 @@
-package v1_user_register
+package v1_user_activate
 
 import (
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,7 +9,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/art-es/blog/internal/auth/api/handler/v1_user_register/mock"
+	"github.com/art-es/blog/internal/auth/api/handler/v1_user_activate/mock"
 	"github.com/art-es/blog/internal/auth/dto"
 	api_mock "github.com/art-es/blog/internal/common/api/mock"
 	"github.com/art-es/blog/internal/common/testutil"
@@ -29,89 +28,92 @@ func TestHandler_Handle(t *testing.T) {
 	)
 
 	var (
-		name              = "dummy name"
-		email             = "dummy@example.com"
-		password          = "1234Qwerty"
+		code              = "dummyCode"
+		validationRule    = "required,uuid"
 		dummyResponseBody = `{"message":"dummy response"}`
 		dummyError        = errors.New("dummy error")
 		noError           = (error)(nil)
-
-		requestBody = func() io.ReadCloser {
-			return testutil.ReadCloserFromJSON(map[string]any{
-				"name":     name,
-				"email":    email,
-				"password": password,
-			})
-		}
-		validatorRequest = &request{
-			Name:     name,
-			Email:    email,
-			Password: password,
-		}
-		registerIn = &dto.RegisterIn{
-			Name:     name,
-			Email:    email,
-			Password: password,
-		}
 	)
 
 	tests := []struct {
 		name    string
-		setup   func(r *http.Request)
+		path    string
+		setup   func()
 		expCode int
 		expBody string
 	}{
 		{
 			name: "happy path",
-			setup: func(r *http.Request) {
-				r.Body = requestBody()
-
+			path: "/v1/auth/user/activate/dummyCode",
+			setup: func() {
 				validator.EXPECT().
-					Struct(gomock.Eq(validatorRequest)).
+					Var(gomock.Eq(code), validationRule).
 					Return(noError)
 
 				usecase.EXPECT().
-					Do(gomock.Any(), gomock.Eq(registerIn)).
+					Do(gomock.Any(), gomock.Eq(&dto.ActivateIn{Code: code})).
 					Return(noError)
 			},
 			expCode: 200,
 			expBody: `{"ok":true}`,
 		},
 		{
-			name: "email is busy",
-			setup: func(r *http.Request) {
-				r.Body = requestBody()
-
-				validator.EXPECT().
-					Struct(gomock.Eq(validatorRequest)).
-					Return(noError)
-
-				usecase.EXPECT().
-					Do(gomock.Any(), gomock.Eq(registerIn)).
-					Return(dto.ErrEmailIsBusy)
-			},
-			expCode: 400,
-			expBody: `{"ok":false,"message":"email is busy"}`,
+			name:    "empty code",
+			path:    "/v1/auth/user/activate/",
+			expCode: 404,
+			expBody: "404 page not found",
 		},
 		{
 			name: "validation error",
-			setup: func(r *http.Request) {
+			path: "/v1/auth/user/activate/dummyCode",
+			setup: func() {
 				validator.EXPECT().
-					Struct(gomock.Any()).
+					Var(gomock.Eq(code), validationRule).
 					Return(dummyError)
 			},
 			expCode: 400,
 			expBody: `{"ok":false,"message":"dummy error"}`,
 		},
 		{
-			name: "server error",
-			setup: func(r *http.Request) {
+			name: "activation code not found",
+			path: "/v1/auth/user/activate/dummyCode",
+			setup: func() {
 				validator.EXPECT().
-					Struct(gomock.Any()).
+					Var(gomock.Eq(code), validationRule).
 					Return(noError)
 
 				usecase.EXPECT().
-					Do(gomock.Any(), gomock.Any()).
+					Do(gomock.Any(), gomock.Eq(&dto.ActivateIn{Code: code})).
+					Return(dto.ErrActivationCodeNotFound)
+			},
+			expCode: 404,
+			expBody: `{"ok":false}`,
+		},
+		{
+			name: "user not found",
+			path: "/v1/auth/user/activate/dummyCode",
+			setup: func() {
+				validator.EXPECT().
+					Var(gomock.Eq(code), validationRule).
+					Return(noError)
+
+				usecase.EXPECT().
+					Do(gomock.Any(), gomock.Eq(&dto.ActivateIn{Code: code})).
+					Return(dto.ErrUserNotFound)
+			},
+			expCode: 404,
+			expBody: `{"ok":false}`,
+		},
+		{
+			name: "server error",
+			path: "/v1/auth/user/activate/dummyCode",
+			setup: func() {
+				validator.EXPECT().
+					Var(gomock.Eq(code), validationRule).
+					Return(noError)
+
+				usecase.EXPECT().
+					Do(gomock.Any(), gomock.Eq(&dto.ActivateIn{Code: code})).
 					Return(dummyError)
 
 				serverErrorHandler.EXPECT().
@@ -128,17 +130,16 @@ func TestHandler_Handle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := httptest.NewRecorder()
-			r := httptest.NewRequest(handler.Method(), handler.Endpoint(), nil)
-
 			if tt.setup != nil {
-				tt.setup(r)
+				tt.setup()
 			}
 
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(handler.Method(), tt.path, nil)
 			router.ServeHTTP(w, r)
 
 			assert.Equal(t, tt.expCode, w.Code)
-			assert.JSONEq(t, tt.expBody, w.Body.String())
+			assert.Equal(t, tt.expBody, w.Body.String())
 		})
 	}
 }

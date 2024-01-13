@@ -1,4 +1,4 @@
-package v1_user_register
+package v1_user_authenticate
 
 import (
 	"errors"
@@ -10,7 +10,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/art-es/blog/internal/auth/api/handler/v1_user_register/mock"
+	"github.com/art-es/blog/internal/auth/api/handler/v1_user_authenticate/mock"
 	"github.com/art-es/blog/internal/auth/dto"
 	api_mock "github.com/art-es/blog/internal/common/api/mock"
 	"github.com/art-es/blog/internal/common/testutil"
@@ -29,29 +29,29 @@ func TestHandler_Handle(t *testing.T) {
 	)
 
 	var (
-		name              = "dummy name"
 		email             = "dummy@example.com"
 		password          = "1234Qwerty"
+		accessToken       = "dummyAccessToken"
 		dummyResponseBody = `{"message":"dummy response"}`
 		dummyError        = errors.New("dummy error")
 		noError           = (error)(nil)
 
 		requestBody = func() io.ReadCloser {
 			return testutil.ReadCloserFromJSON(map[string]any{
-				"name":     name,
 				"email":    email,
 				"password": password,
 			})
 		}
 		validatorRequest = &request{
-			Name:     name,
 			Email:    email,
 			Password: password,
 		}
-		registerIn = &dto.RegisterIn{
-			Name:     name,
+		authenticateIn = &dto.AuthenticateIn{
 			Email:    email,
 			Password: password,
+		}
+		authenticateOut = &dto.AuthenticateOut{
+			AccessToken: accessToken,
 		}
 	)
 
@@ -71,14 +71,14 @@ func TestHandler_Handle(t *testing.T) {
 					Return(noError)
 
 				usecase.EXPECT().
-					Do(gomock.Any(), gomock.Eq(registerIn)).
-					Return(noError)
+					Do(gomock.Any(), gomock.Eq(authenticateIn)).
+					Return(authenticateOut, noError)
 			},
 			expCode: 200,
-			expBody: `{"ok":true}`,
+			expBody: `{"ok":true,"accessToken":"dummyAccessToken"}`,
 		},
 		{
-			name: "email is busy",
+			name: "user not found",
 			setup: func(r *http.Request) {
 				r.Body = requestBody()
 
@@ -87,11 +87,27 @@ func TestHandler_Handle(t *testing.T) {
 					Return(noError)
 
 				usecase.EXPECT().
-					Do(gomock.Any(), gomock.Eq(registerIn)).
-					Return(dto.ErrEmailIsBusy)
+					Do(gomock.Any(), gomock.Eq(authenticateIn)).
+					Return(nil, dto.ErrUserNotFound)
 			},
 			expCode: 400,
-			expBody: `{"ok":false,"message":"email is busy"}`,
+			expBody: `{"ok":false,"message":"credentials are wrong"}`,
+		},
+		{
+			name: "wrong password",
+			setup: func(r *http.Request) {
+				r.Body = requestBody()
+
+				validator.EXPECT().
+					Struct(gomock.Eq(validatorRequest)).
+					Return(noError)
+
+				usecase.EXPECT().
+					Do(gomock.Any(), gomock.Eq(authenticateIn)).
+					Return(nil, dto.ErrWrongPassword)
+			},
+			expCode: 400,
+			expBody: `{"ok":false,"message":"credentials are wrong"}`,
 		},
 		{
 			name: "validation error",
@@ -112,7 +128,7 @@ func TestHandler_Handle(t *testing.T) {
 
 				usecase.EXPECT().
 					Do(gomock.Any(), gomock.Any()).
-					Return(dummyError)
+					Return(nil, dummyError)
 
 				serverErrorHandler.EXPECT().
 					Handle(gomock.Eq(handler.Endpoint()), gomock.Any(), gomock.Eq(dummyError)).

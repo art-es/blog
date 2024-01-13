@@ -54,7 +54,7 @@ func (h *Handler) Endpoint() string {
 
 func (h *Handler) Handle(ctx *gin.Context) {
 	var req request
-	_ = ctx.BindJSON(&req)
+	ctx.ShouldBindJSON(&req)
 
 	if err := h.validator.Struct(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, response{Message: err.Error()})

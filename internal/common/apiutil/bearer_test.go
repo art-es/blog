@@ -1,4 +1,4 @@
-package util_test
+package apiutil_test
 
 import (
 	"net/http/httptest"
@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/art-es/blog/internal/auth/api/util"
+	"github.com/art-es/blog/internal/common/apiutil"
 )
 
 func TestParseBearerToken(t *testing.T) {
@@ -45,10 +45,10 @@ func TestParseBearerToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.headerValue, func(t *testing.T) {
 			req := httptest.NewRequest("GET", "http://127.0.0.1", nil)
-			req.Header.Set("Authentication", tt.headerValue)
+			req.Header.Set("Authorization", tt.headerValue)
 			ctx := &gin.Context{Request: req}
 
-			token, exists := util.ParseBearerToken(ctx)
+			token, exists := apiutil.ParseBearerToken(ctx)
 			assert.Equal(t, tt.expToken, token)
 			assert.Equal(t, tt.expExists, exists)
 		})

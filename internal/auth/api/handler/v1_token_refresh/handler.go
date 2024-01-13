@@ -1,3 +1,4 @@
+//go:generate mockgen -source=handler.go -destination=mock/handler.go -package=mock
 package v1_token_refresh
 
 import (
@@ -6,9 +7,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/art-es/blog/internal/auth/api/util"
 	"github.com/art-es/blog/internal/auth/dto"
 	"github.com/art-es/blog/internal/common/api"
+	"github.com/art-es/blog/internal/common/apiutil"
 )
 
 type usecase interface {
@@ -42,13 +43,14 @@ func (h *Handler) Endpoint() string {
 }
 
 func (h *Handler) Handle(ctx *gin.Context) {
-	accessToken, ok := util.ParseBearerToken(ctx)
+	token, ok := apiutil.ParseBearerToken(ctx)
 	if !ok {
 		ctx.JSON(http.StatusUnauthorized, response{})
 		return
 	}
 
-	out, err := h.usecase.Do(ctx, &dto.RefreshTokenIn{AccessToken: accessToken})
+	in := dto.RefreshTokenIn{AccessToken: token}
+	out, err := h.usecase.Do(ctx, &in)
 	if err != nil {
 		switch err {
 		case dto.ErrInvalidAccessToken:

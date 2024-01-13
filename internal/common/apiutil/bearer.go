@@ -1,4 +1,4 @@
-package util
+package apiutil
 
 import (
 	"strings"
@@ -7,7 +7,7 @@ import (
 )
 
 func ParseBearerToken(ctx *gin.Context) (string, bool) {
-	values := strings.Split(ctx.GetHeader("Authentication"), " ")
+	values := strings.Split(ctx.GetHeader("Authorization"), " ")
 	if len(values) != 2 || strings.ToLower(values[0]) != "bearer" || values[1] == "" {
 		return "", false
 	}
