@@ -29,5 +29,5 @@ func TestService_wrongPassword(t *testing.T) {
 	assert.NotEmpty(t, hash)
 
 	err = s.Validate(hash, "fake-password")
-	assert.ErrorIs(t, err, dto.ErrWrongPassword)
+	assert.ErrorIs(t, err, dto.ErrIncorrectPassword)
 }

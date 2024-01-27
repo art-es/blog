@@ -2,42 +2,46 @@
 package api
 
 import (
-	"encoding/json"
-	"net/http"
+	"github.com/gin-gonic/gin"
 
 	"github.com/art-es/blog/internal/common/log"
 )
 
-var _ ServerErrorHandler = (*serverErrorHandler)(nil)
+type ServerErrorHandlerFactory interface {
+	MakeHandler(method, path string) ServerErrorHandler
+}
 
 type ServerErrorHandler interface {
-	Handle(endpoint string, w http.ResponseWriter, err error)
+	Handle(ctx *gin.Context, err error)
 }
 
-const responseMessage = "sorry, please, try again later"
-
-type response struct {
-	OK      bool   `json:"ok"`
-	Message string `json:"message"`
-}
-
-type serverErrorHandler struct {
+type serverErrorHandlerFactory struct {
 	logger log.Logger
 }
 
-func NewServerErrorHandler(logger log.Logger) *serverErrorHandler {
-	return &serverErrorHandler{
+type serverErrorHandler struct {
+	endpoint string
+	logger   log.Logger
+}
+
+func NewServerErrorHandlerFactory(logger log.Logger) ServerErrorHandlerFactory {
+	return &serverErrorHandlerFactory{
 		logger: logger,
 	}
 }
 
-func (h *serverErrorHandler) Handle(endpoint string, w http.ResponseWriter, err error) {
-	h.logger.Error("API server error", log.String("endpointName", endpoint), log.Error(err))
+func (f *serverErrorHandlerFactory) MakeHandler(method, path string) ServerErrorHandler {
+	return &serverErrorHandler{
+		endpoint: method + " " + path,
+		logger:   f.logger,
+	}
+}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusInternalServerError)
-	_ = json.NewEncoder(w).Encode(&response{
-		OK:      false,
-		Message: responseMessage,
-	})
+func (h *serverErrorHandler) Handle(ctx *gin.Context, err error) {
+	h.logger.Error("API server error",
+		log.String("endpoint", h.endpoint),
+		log.Error(err),
+	)
+
+	InternalServerErrorResponse(ctx)
 }

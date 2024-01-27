@@ -1,33 +1,33 @@
 package dto
 
-type RegisterIn struct {
+type UserRegisterIn struct {
 	Name     string
 	Email    string
 	Password string
 }
 
-type ActivateIn struct {
+type UserActivateIn struct {
 	Code string
 }
 
-type AuthenticateIn struct {
+type UserAuthenticateIn struct {
 	Email    string
 	Password string
 }
 
-type AuthenticateOut struct {
+type UserAuthenticateOut struct {
 	AccessToken string
 }
 
-type RefreshTokenIn struct {
+type AccessTokenRefreshIn struct {
 	AccessToken string
 }
 
-type RefreshTokenOut struct {
+type AccessTokenRefreshOut struct {
 	AccessToken string
 }
 
-type ParseTokenIn struct {
+type AccessTokenParseIn struct {
 	AccessToken string
 }
 

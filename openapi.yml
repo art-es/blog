@@ -1,0 +1,270 @@
+openapi: '3.0.2'
+
+info:
+  title: Marketplace API
+  version: '1.0'
+
+paths:
+  /v1/auth/user/register:
+    post:
+      operationId: registerUserV1
+      summary: Register a user
+      tags: ['Auth']
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Ivan Ivanov
+                email:
+                  type: string
+                  format: email
+                  example: i.ivanov@example.com
+                password:
+                  type: string
+                  example: Qwerty123!
+              required:
+                - name
+                - email
+                - password
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    enum: ['Please check your email to activate your account.']
+        400:
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/RequestValidationFailedResponse'
+                  - $ref: '#/components/schemas/BusyEmailResponse'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/auth/user/activate:
+    post:
+      operationId: activateUserV1
+      summary: Activate user
+      tags: ['Auth']
+      requestBody: 
+        content: 
+          application/json:
+            schema: 
+              type: object
+              properties:
+                code:
+                  type: string
+                  format: uuid
+                  example: "1eb62291-9374-4887-8c1a-96382e54fcad"
+                  description: User activation code
+              required:
+                - code
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    enum: ['Your account have been activated.']
+        400:
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/RequestValidationFailedResponse'
+                  - $ref: '#/components/schemas/ExpiredUserActivationCodeResponse'
+        404:
+          description: Not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    enum: ['Activation code not found.']
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/auth/user/authenticate:
+    post:
+      operationId: authenticateUserV1
+      summary: Authenticate user
+      tags: ['Auth']
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: i.ivanov@example.com
+                password:
+                  type: string
+                  example: Qwerty123!
+              required:
+                - email
+                - password
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    $ref: '#/components/schemas/AccessToken'
+        400:
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/RequestValidationFailedResponse'
+                  - $ref: '#/components/schemas/IncorrectUserCredentialsResponse'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+  
+  /v1/auth/access-token/refresh:
+    post:
+      operationId: refreshAccessTokenV1
+      summary: Refresh an access token
+      tags: ['Auth']
+      parameters:
+        - $ref: '#/components/parameters/X-Access-Token'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    $ref: '#/components/schemas/AccessToken'
+        401:
+          $ref: '#/components/responses/Unauthorized'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+
+components:
+  parameters:
+    X-Access-Token:
+      name: X-Access-Token
+      in: header
+      required: true
+      schema:
+        $ref: '#/components/schemas/AccessToken'
+
+  responses:
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                enum: ['Something went wrong, please try again later.']
+    
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                enum: ['Please try to sign in again.']
+  
+  schemas:
+    RequestValidationFailedResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: 
+              type: integer
+              enum: [1001]
+            name:
+              type: string
+              enum: ['Request validation failed']
+        message:
+          type: string
+          example: 'fieldNameA: required; fieldNameB: max length 70'
+    
+    BusyEmailResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: 
+              type: integer
+              enum: [2001]
+            name:
+              type: string
+              enum: ['Busy email']
+        message:
+          type: string
+          enum: ['User with this email already exists.']
+    
+    ExpiredUserActivationCodeResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: 
+              type: integer
+              enum: [2002]
+            name:
+              type: string
+              enum: ['Expired user activation code']
+        message:
+          type: string
+          enum: ['Activate code is expired. Please pass the registration process again.']
+    
+    IncorrectUserCredentialsResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              enum: [2003]
+            name:
+              type: string
+              enum: ['Incorrect user credentials']
+        message:
+          type: string
+          enum: ['Email or password is incorrect.']
+
+    AccessToken:
+      type: string
+      description: Token for getting access to the API using a user account
+      example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c

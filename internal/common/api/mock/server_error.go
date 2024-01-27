@@ -5,11 +5,49 @@
 package mock
 
 import (
-	http "net/http"
 	reflect "reflect"
 
+	api "github.com/art-es/blog/internal/common/api"
+	gin "github.com/gin-gonic/gin"
 	gomock "github.com/golang/mock/gomock"
 )
+
+// MockServerErrorHandlerFactory is a mock of ServerErrorHandlerFactory interface.
+type MockServerErrorHandlerFactory struct {
+	ctrl     *gomock.Controller
+	recorder *MockServerErrorHandlerFactoryMockRecorder
+}
+
+// MockServerErrorHandlerFactoryMockRecorder is the mock recorder for MockServerErrorHandlerFactory.
+type MockServerErrorHandlerFactoryMockRecorder struct {
+	mock *MockServerErrorHandlerFactory
+}
+
+// NewMockServerErrorHandlerFactory creates a new mock instance.
+func NewMockServerErrorHandlerFactory(ctrl *gomock.Controller) *MockServerErrorHandlerFactory {
+	mock := &MockServerErrorHandlerFactory{ctrl: ctrl}
+	mock.recorder = &MockServerErrorHandlerFactoryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockServerErrorHandlerFactory) EXPECT() *MockServerErrorHandlerFactoryMockRecorder {
+	return m.recorder
+}
+
+// MakeHandler mocks base method.
+func (m *MockServerErrorHandlerFactory) MakeHandler(method, path string) api.ServerErrorHandler {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MakeHandler", method, path)
+	ret0, _ := ret[0].(api.ServerErrorHandler)
+	return ret0
+}
+
+// MakeHandler indicates an expected call of MakeHandler.
+func (mr *MockServerErrorHandlerFactoryMockRecorder) MakeHandler(method, path interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MakeHandler", reflect.TypeOf((*MockServerErrorHandlerFactory)(nil).MakeHandler), method, path)
+}
 
 // MockServerErrorHandler is a mock of ServerErrorHandler interface.
 type MockServerErrorHandler struct {
@@ -35,13 +73,13 @@ func (m *MockServerErrorHandler) EXPECT() *MockServerErrorHandlerMockRecorder {
 }
 
 // Handle mocks base method.
-func (m *MockServerErrorHandler) Handle(endpoint string, w http.ResponseWriter, err error) {
+func (m *MockServerErrorHandler) Handle(ctx *gin.Context, err error) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Handle", endpoint, w, err)
+	m.ctrl.Call(m, "Handle", ctx, err)
 }
 
 // Handle indicates an expected call of Handle.
-func (mr *MockServerErrorHandlerMockRecorder) Handle(endpoint, w, err interface{}) *gomock.Call {
+func (mr *MockServerErrorHandlerMockRecorder) Handle(ctx, err interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Handle", reflect.TypeOf((*MockServerErrorHandler)(nil).Handle), endpoint, w, err)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Handle", reflect.TypeOf((*MockServerErrorHandler)(nil).Handle), ctx, err)
 }

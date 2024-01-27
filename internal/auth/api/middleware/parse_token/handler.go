@@ -4,30 +4,45 @@ package parse_token
 import (
 	"context"
 
+	"github.com/art-es/blog/internal/common/api"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/art-es/blog/internal/auth/dto"
-	"github.com/art-es/blog/internal/common/apiutil"
 )
 
-type usecase interface {
-	Do(ctx context.Context, in *dto.ParseTokenIn) (*dto.ParseTokenOut, error)
+type accessTokenParseCase interface {
+	Use(ctx context.Context, in *dto.AccessTokenParseIn) (*dto.ParseTokenOut, error)
 }
 
 type Middleware struct {
-	usecase usecase
+	accessTokenParseCase accessTokenParseCase
 }
 
-func New(usecase usecase) *Middleware {
-	return &Middleware{usecase: usecase}
+func New(accessTokenParseCase accessTokenParseCase) *Middleware {
+	return &Middleware{
+		accessTokenParseCase: accessTokenParseCase,
+	}
 }
 
 func (m *Middleware) Handle(ctx *gin.Context) {
-	if accessToken, ok := apiutil.ParseBearerToken(ctx); ok {
-		if out, err := m.usecase.Do(ctx, &dto.ParseTokenIn{AccessToken: accessToken}); err == nil {
-			apiutil.SetUserID(ctx, out.UserID)
+	if accessToken := api.AccessTokenHeader(ctx); accessToken != "" {
+		if userID, ok := m.useCase(ctx, accessToken); ok {
+			api.SetUserID(ctx, userID)
 		}
 	}
 
 	ctx.Next()
+}
+
+func (m *Middleware) useCase(ctx context.Context, accessToken string) (int64, bool) {
+	in := dto.AccessTokenParseIn{
+		AccessToken: accessToken,
+	}
+
+	if out, err := m.accessTokenParseCase.Use(ctx, &in); err == nil {
+		return out.UserID, true
+	}
+
+	return 0, false
 }

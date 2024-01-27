@@ -1,15 +1,10 @@
 package authenticated
 
 import (
-	"net/http"
+	"github.com/art-es/blog/internal/common/api"
 
-	"github.com/art-es/blog/internal/common/apiutil"
 	"github.com/gin-gonic/gin"
 )
-
-type response struct {
-	OK bool `json:"ok"`
-}
 
 type Middleware struct{}
 
@@ -18,9 +13,9 @@ func New() *Middleware {
 }
 
 func (m *Middleware) Handle(ctx *gin.Context) {
-	switch apiutil.GetUserID(ctx) {
+	switch api.GetUserID(ctx) {
 	case 0:
-		ctx.AbortWithStatusJSON(http.StatusUnauthorized, response{})
+		api.UnauthorizedResponse(ctx)
 	default:
 		ctx.Next()
 	}

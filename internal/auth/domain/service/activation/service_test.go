@@ -101,7 +101,7 @@ func TestService_Activate(t *testing.T) {
 						return r
 					})
 			},
-			expErr: dto.ErrActivationCodeNotFound.Error(),
+			expErr: dto.ErrUserActivationCodeNotFound.Error(),
 		},
 		{
 			name: "error on activation",

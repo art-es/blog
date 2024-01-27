@@ -24,7 +24,7 @@ func (s *Service) Generate(password string) (string, error) {
 func (s *Service) Validate(password, hash string) error {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	if err == bcrypt.ErrMismatchedHashAndPassword {
-		return dto.ErrWrongPassword
+		return dto.ErrIncorrectPassword
 	}
 	return err
 }

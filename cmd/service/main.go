@@ -4,18 +4,25 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/art-es/blog/internal/auth/infra/databus_kafka"
+
+	"github.com/art-es/blog/internal/auth/domain/service/access_token"
+
+	"github.com/art-es/blog/internal/common/validation"
+
+	"github.com/art-es/blog/internal/auth/domain/service/activation"
+	"github.com/art-es/blog/internal/auth/domain/service/password_hash"
+	"github.com/art-es/blog/internal/auth/infra/repository_pg"
+
+	"github.com/art-es/blog/internal/auth/api/endpoint/v1_user_register"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/art-es/blog/cmd/service/config"
-	"github.com/art-es/blog/cmd/service/di"
-	"github.com/art-es/blog/internal/auth/api/handler/v1_token_refresh"
-	"github.com/art-es/blog/internal/auth/api/handler/v1_user_activate"
-	"github.com/art-es/blog/internal/auth/api/handler/v1_user_authenticate"
-	"github.com/art-es/blog/internal/auth/api/handler/v1_user_register"
-	authDomain "github.com/art-es/blog/internal/auth/domain"
-	"github.com/art-es/blog/internal/blog/api/get_article"
-	"github.com/art-es/blog/internal/blog/api/get_articles"
-	"github.com/art-es/blog/internal/blog/api/get_categories"
+	"github.com/art-es/blog/internal/auth/api/endpoint/v1_access_token_refresh"
+	"github.com/art-es/blog/internal/auth/api/endpoint/v1_user_activate"
+	"github.com/art-es/blog/internal/auth/api/endpoint/v1_user_authenticate"
+	auth "github.com/art-es/blog/internal/auth/domain"
 	"github.com/art-es/blog/internal/common/api"
 	"github.com/art-es/blog/internal/common/log"
 )
@@ -33,47 +40,43 @@ func run() error {
 		return fmt.Errorf("open database error: %w", err)
 	}
 
-	dic := di.New(conf, logger, db)
 	router := gin.Default()
-
-	bindAuthEndpoints(router, dic)
-	bindBlogEndpoints(router, dic)
+	bindAuthEndpoints(router, conf, logger, db)
 
 	err = router.Run(conf.ServiceURL)
 	return fmt.Errorf("running router error: %w", err)
 }
 
-func bindAuthEndpoints(r *gin.Engine, dic *di.Container) {
-	authDI := dic.Auth
-	apiTools := dic.APITools
+func bindAuthEndpoints(router *gin.Engine, conf *config.Config, logger log.Logger, db *sql.DB) {
+	repository := repository_pg.New(db)
+	passwordHashService := password_hash.New()
+	activationService := activation.New(logger, databus_kafka.New(conf.KafkaURL))
+	accessTokenService := access_token.New(conf.AccessTokenSecret)
 
-	api.BindEndpoints(r,
-		v1_user_register.New(
-			authDomain.NewRegisterUsecase(authDI.Repository, authDI.PasswordHashService, authDI.ActivationService),
-			apiTools.Validator,
-			apiTools.ServerErrorHandler,
-		),
-		v1_user_activate.New(
-			authDomain.NewActivateUsecase(authDI.Repository, authDI.ActivationService),
-			apiTools.Validator,
-			apiTools.ServerErrorHandler,
-		),
-		v1_user_authenticate.New(
-			authDomain.NewAuthenticateUsecase(authDI.Repository.User(), authDI.PasswordHashService, authDI.AccessTokenService),
-			apiTools.Validator,
-			apiTools.ServerErrorHandler,
-		),
-		v1_token_refresh.New(
-			authDomain.NewRefreshTokenUsecase(authDI.Repository.User(), authDI.AccessTokenService),
-			apiTools.ServerErrorHandler,
-		),
+	validator := validation.NewValidator()
+	serverErrorHandlerFactory := api.NewServerErrorHandlerFactory(logger)
+
+	v1_user_register.Bind(
+		router,
+		auth.NewUserRegisterCase(repository, passwordHashService, activationService),
+		validator,
+		serverErrorHandlerFactory,
 	)
-}
-
-func bindBlogEndpoints(r *gin.Engine, dic *di.Container) {
-	// TODO: add implementation
-	rg := r.Group("/v1/blog", dic.Middlewares.ParseAccessToken)
-	rg.GET("/categories", get_categories.NewHandler().Handle)
-	rg.GET("/articles", get_articles.NewHandler().Handle)
-	rg.GET("/articles/:slug", get_article.NewHandler().Handle)
+	v1_user_activate.Bind(
+		router,
+		auth.NewUserActivateCase(repository, activationService),
+		validator,
+		serverErrorHandlerFactory,
+	)
+	v1_user_authenticate.Bind(
+		router,
+		auth.NewUserAuthenticateCase(repository.User(), passwordHashService, accessTokenService),
+		validator,
+		serverErrorHandlerFactory,
+	)
+	v1_access_token_refresh.Bind(
+		router,
+		auth.NewAccessTokenRefreshCase(repository.User(), accessTokenService),
+		serverErrorHandlerFactory,
+	)
 }

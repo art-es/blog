@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/art-es/blog/internal/common/api"
+
 	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +15,6 @@ import (
 	"github.com/art-es/blog/internal/auth/api/middleware/parse_token"
 	"github.com/art-es/blog/internal/auth/api/middleware/parse_token/mock"
 	"github.com/art-es/blog/internal/auth/dto"
-	"github.com/art-es/blog/internal/common/apiutil"
 )
 
 func Test(t *testing.T) {
@@ -35,11 +36,11 @@ func Test(t *testing.T) {
 				r.Header.Set("Authorization", "Bearer foo")
 
 				usecase.EXPECT().
-					Do(gomock.Any(), gomock.Eq(&dto.ParseTokenIn{AccessToken: "foo"})).
+					Do(gomock.Any(), gomock.Eq(&dto.AccessTokenParseIn{AccessToken: "foo"})).
 					Return(&dto.ParseTokenOut{UserID: 1}, nil)
 			},
 			handler: func(c *gin.Context) {
-				userID := apiutil.GetUserID(c)
+				userID := api.GetUserID(c)
 				assert.Equal(t, int64(1), userID)
 			},
 		},
@@ -49,7 +50,7 @@ func Test(t *testing.T) {
 				r.Header.Del("Authorization")
 			},
 			handler: func(c *gin.Context) {
-				userID := apiutil.GetUserID(c)
+				userID := api.GetUserID(c)
 				assert.Equal(t, int64(0), userID)
 			},
 		},
@@ -59,11 +60,11 @@ func Test(t *testing.T) {
 				r.Header.Set("Authorization", "Bearer foo")
 
 				usecase.EXPECT().
-					Do(gomock.Any(), gomock.Eq(&dto.ParseTokenIn{AccessToken: "foo"})).
+					Do(gomock.Any(), gomock.Eq(&dto.AccessTokenParseIn{AccessToken: "foo"})).
 					Return(nil, errors.New("dummy error"))
 			},
 			handler: func(c *gin.Context) {
-				userID := apiutil.GetUserID(c)
+				userID := api.GetUserID(c)
 				assert.Equal(t, int64(0), userID)
 			},
 		},

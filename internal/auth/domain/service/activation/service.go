@@ -34,7 +34,7 @@ func (s *Service) Activate(ctx context.Context, code string, tx domain.TxCommitt
 		return fmt.Errorf("auth ID getting from repository error: %w", err)
 	}
 	if uid == 0 {
-		return dto.ErrActivationCodeNotFound
+		return dto.ErrUserActivationCodeNotFound
 	}
 
 	ok, err := tx.User().Activate(ctx, uid)
