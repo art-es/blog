@@ -5,12 +5,11 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/art-es/blog/internal/common/validation"
-
 	"github.com/gin-gonic/gin"
 
 	"github.com/art-es/blog/internal/auth/dto"
 	"github.com/art-es/blog/internal/common/api"
+	"github.com/art-es/blog/internal/common/validation"
 )
 
 const (

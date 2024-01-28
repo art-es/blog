@@ -7,15 +7,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/art-es/blog/internal/common/api"
-
-	"github.com/art-es/blog/internal/auth/dto"
-
 	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/art-es/blog/internal/auth/api/endpoint/v1_user_authenticate/mock"
+	"github.com/art-es/blog/internal/auth/dto"
+	"github.com/art-es/blog/internal/common/api"
 	mock_api "github.com/art-es/blog/internal/common/api/mock"
 )
 
